@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeAuth Widget 综合测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            padding: 40px 24px;
+            max-width: 780px;
+            margin: 0 auto;
+            background: #f8fafc;
+            color: #1e293b;
+        }
+        h1 {
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .subtitle {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 640px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .card h2 {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            margin-bottom: 12px;
+        }
+        .card .desc {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+        .card .desc code {
+            background: #f1f5f9;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #475569;
+        }
+        .result-box {
+            margin-top: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+            word-break: break-all;
+            transition: all 0.2s;
+        }
+        .result-box.idle {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+        .result-box.success {
+            background: #ecfdf5;
+            border: 1px solid #059669;
+            color: #065f46;
+        }
+        .result-box.error {
+            background: #fef2f2;
+            border: 1px solid #dc2626;
+            color: #991b1b;
+        }
+        .result-box code,
+        .result-box pre {
+            display: block;
+            margin-top: 6px;
+            padding: 6px 10px;
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 6px;
+            font-size: 11px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .token-value {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .status-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .status-tag.loaded {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .status-tag.waiting {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-tag.error-tag {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+        .meta {
+            margin-top: 24px;
+            padding: 12px 16px;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #92400e;
+        }
+        .meta code {
+            background: #fef3c7;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        /* API 控制区按钮 */
+        .api-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .api-actions button {
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            background: white;
+            font-size: 12px;
+            font-weight: 500;
+            color: #334155;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .api-actions button:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+        .api-actions button:active {
+            background: #e2e8f0;
+        }
+        .api-actions button.primary {
+            background: #0066ff;
+            border-color: #0066ff;
+            color: white;
+        }
+        .api-actions button.primary:hover {
+            background: #0052cc;
+        }
+        .api-actions button.danger {
+            border-color: #fca5a5;
+            color: #991b1b;
+        }
+        .api-actions button.danger:hover {
+            background: #fef2f2;
+        }
+        .api-actions button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .widget-id-label {
+            font-size: 10px;
+            color: #94a3b8;
+            font-family: monospace;
+            margin-top: 4px;
+        }
+
+        /* 日志区 */
+        .log-container {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+        .log-container .log-line {
+            color: #cbd5e1;
+            border-bottom: 1px solid #1e293b;
+            padding: 2px 0;
+        }
+        .log-container .log-line .time {
+            color: #64748b;
+        }
+        .log-container .log-line .level-info {
+            color: #38bdf8;
+        }
+        .log-container .log-line .level-success {
+            color: #34d399;
+        }
+        .log-container .log-line .level-warn {
+            color: #fbbf24;
+        }
+        .log-container .log-line .level-error {
+            color: #f87171;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>WeAuth Widget 综合测试</h1>
+    <p class="subtitle">
+        测试 data-* 自动渲染、JS API 编程式渲染、以及各回调函数的联通性
+        — 状态: <span id="scriptStatus" class="status-tag waiting">等待加载...</span>
+    </p>
+
+    <!-- ================================================================ -->
+    <!-- 双列网格：4 个 data-* 自动渲染卡片 -->
+    <!-- ================================================================ -->
+    <div class="grid">
+
+        <!-- 1. 默认配置 (light + blue) -->
+        <div class="card">
+            <h2>① 默认配置</h2>
+            <div class="weauth-widget"
+                 data-sitekey="trial-sitekey"
+                 data-callback="onSuccess"
+                 data-theme="light"
+                 data-theme-color="blue">
+            </div>
+            <div id="result-default" class="result-box idle">等待验证...</div>
+            <div class="desc">
+                <code>data-theme="light"</code> <code>data-theme-color="blue"</code>
+            </div>
+        </div>
+
+        <!-- 2. 深色主题 + 紫色 -->
+        <div class="card">
+            <h2>② 深色主题</h2>
+            <div class="weauth-widget"
+                 data-sitekey="trial-sitekey"
+                 data-callback="onSuccessDark"
+                 data-theme="dark"
+                 data-theme-color="violet">
+            </div>
+            <div id="result-dark" class="result-box idle">等待验证...</div>
+            <div class="desc">
+                <code>data-theme="dark"</code> <code>data-theme-color="violet"</code>
+            </div>
+        </div>
+
+        <!-- 3. 紧凑模式 + 翡翠绿 -->
+        <div class="card">
+            <h2>③ 紧凑模式</h2>
+            <div class="weauth-widget"
+                 data-sitekey="trial-sitekey"
+                 data-callback="onSuccessCompact"
+                 data-theme="light"
+                 data-theme-color="emerald"
+                 data-size="compact">
+            </div>
+            <div id="result-compact" class="result-box idle">等待验证...</div>
+            <div class="desc">
+                <code>data-size="compact"</code> <code>data-theme-color="emerald"</code>
+            </div>
+        </div>
+
+        <!-- 4. 自适应宽 + 自动启动 + 青色 -->
+        <div class="card">
+            <h2>④ 自适应 + 自动启动</h2>
+            <div class="weauth-widget"
+                 data-sitekey="trial-sitekey"
+                 data-callback="onSuccessAuto"
+                 data-error-callback="onErrorAuto"
+                 data-theme="auto"
+                 data-theme-color="cyan"
+                 data-size="flexible"
+                 data-auto-start="true">
+            </div>
+            <div id="result-auto" class="result-box idle">等待验证...</div>
+            <div class="desc">
+                <code>data-size="flexible"</code> <code>data-auto-start="true"</code><br>
+                <code>data-theme="auto"</code> <code>data-theme-color="cyan"</code>
+            </div>
+        </div>
+
+        <!-- 5. 编程式渲染 (weauth.render API) + 橙色 -->
+        <div class="card">
+            <h2>⑤ 编程式渲染</h2>
+            <div id="programmatic-container"></div>
+            <div id="result-programmatic" class="result-box idle">未调用 render...</div>
+            <div class="api-actions">
+                <button class="primary" onclick="renderProgrammatic()">render()</button>
+                <button onclick="resetProgrammatic()">reset()</button>
+                <button onclick="executeProgrammatic()">execute()</button>
+                <button class="danger" onclick="removeProgrammatic()">remove()</button>
+            </div>
+            <div class="widget-id-label" id="progWidgetId">未渲染</div>
+            <div class="desc">
+                <code>weauth.render('#programmatic-container', { sitekey, themeColor: 'orange' })</code>
+            </div>
+        </div>
+
+        <!-- 6. API 控制面板 (全局管理) -->
+        <div class="card">
+            <h2>⑥ API 控制面板</h2>
+            <p style="font-size:13px; color:#475569; margin-bottom:8px;">
+                管理上面所有已渲染的 widget
+            </p>
+            <div class="api-actions" style="margin-top:0;">
+                <button onclick="resetAllWidgets()" title="对所有 widget 发送 reset 消息">全部 reset()</button>
+                <button onclick="executeAllWidgets()" title="对所有 widget 发送 execute 消息">全部 execute()</button>
+                <button class="danger" onclick="removeAllProgrammatic()" title="移除编程式 widget">移除 ⑤</button>
+            </div>
+            <div id="result-api" class="result-box idle">点击按钮操作...</div>
+            <div class="desc">
+                测试 <code>weauth.reset()</code> <code>weauth.execute()</code> <code>weauth.remove()</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- 统一事件日志 -->
+    <!-- ================================================================ -->
+    <div class="card" style="margin-top:8px;">
+        <h2>事件日志</h2>
+        <div class="log-container" id="logContainer">
+            <div class="log-line" style="color:#64748b;">— 等待事件 —</div>
+        </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- 说明区 -->
+    <!-- ================================================================ -->
+    <div class="meta">
+        <strong>测试范围</strong><br>
+        ① data-* 自动渲染（默认配置）<br>
+        ② data-* 自动渲染（深色主题 + 紫色）<br>
+        ③ data-* 自动渲染（紧凑尺寸 + 翡翠绿）<br>
+        ④ data-* 自动渲染（自适应 + 自动启动 + 青色 + 错误回调）<br>
+        ⑤ <code>weauth.render()</code> 编程式渲染 + reset / execute / remove<br>
+        ⑥ 跨 widget 统一 reset / execute 管理<br><br>
+        <strong>后端验证</strong>：验证成功后会调用 <code>POST /api/pow/siteverify</code> 校验 token
+    </div>
+
+    <!-- 加载 WeAuth widget embed 脚本 -->
+    <script src="http://localhost:5173/weauth.js" async defer></script>
+
+    <script>
+        // ================================================================
+        // 辅助函数：统一的日志系统
+        // ================================================================
+        const logContainer = document.getElementById('logContainer')
+
+        function log(level, label, message, detail) {
+            const line = document.createElement('div')
+            line.className = 'log-line'
+            const time = new Date().toLocaleTimeString()
+            const levelClass = 'level-' + level
+            let html = '<span class="time">[' + time + ']</span> '
+            html += '<span class="' + levelClass + '">[' + label + ']</span> '
+            html += escapeHtml(message)
+            if (detail) {
+                html += ' <span style="color:#64748b;">→</span> '
+                html += '<span class="token-value">' + escapeHtml(String(detail).slice(0, 80)) + '</span>'
+            }
+            line.innerHTML = html
+            logContainer.appendChild(line)
+            logContainer.scrollTop = logContainer.scrollHeight
+            // 移除欢迎语
+            const first = logContainer.querySelector('.log-line:first-child')
+            if (first && first.textContent.includes('等待事件')) {
+                first.remove()
+            }
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div')
+            div.textContent = str
+            return div.innerHTML
+        }
+
+        // ================================================================
+        // 1. 检测 embed 脚本是否加载完成
+        // ================================================================
+        const scriptStatus = document.getElementById('scriptStatus')
+        let weauthReady = false
+
+        const pollTimer = setInterval(function () {
+            if (typeof window.weauth !== 'undefined') {
+                weauthReady = true
+                scriptStatus.textContent = '已加载 (ready) — window.weauth 可用'
+                scriptStatus.className = 'status-tag loaded'
+                clearInterval(pollTimer)
+                log('info', '系统', 'window.weauth 已挂载，自动扫描 .weauth-widget 元素...')
+                // 脚本就绪后自动触发⑤的初始渲染（演示用）
+                setTimeout(renderProgrammatic, 500)
+            }
+        }, 200)
+
+        setTimeout(function () {
+            if (typeof window.weauth === 'undefined') {
+                scriptStatus.textContent = '加载超时 — 确认 weauth.js 在 /weauth.js 可访问'
+                scriptStatus.className = 'status-tag error-tag'
+                scriptStatus.style.background = '#fef2f2'
+                scriptStatus.style.color = '#dc2626'
+                clearInterval(pollTimer)
+                log('error', '系统', 'weauth.js 加载超时，请确认 dev server 已启动')
+            }
+        }, 10000)
+
+        // ================================================================
+        // SITEVERIFY 通用调用
+        // ================================================================
+        async function callSiteverify(token, resultEl, label) {
+            resultEl.innerHTML = '<strong>✓ 验证成功</strong><br>Token: <span class="token-value">' + token + '</span>'
+            resultEl.className = 'result-box success'
+            log('success', label, '收到 token，正在调用 siteverify...', token)
+
+            try {
+                const requestId = 'trial-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8)
+                const response = await fetch('http://localhost:8080/api/pow/siteverify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        meta: {
+                            request_id: requestId,
+                            timestamp: new Date().toISOString()
+                        },
+                        data: {
+                            secret: 'trial-secret',
+                            token: token
+                        }
+                    })
+                })
+
+                const data = await response.json()
+                resultEl.innerHTML +=
+                    '<br><br><strong>Siteverify 响应:</strong>' +
+                    '<pre>' + JSON.stringify(data, null, 2) + '</pre>'
+                log('info', label, 'siteverify 响应收到', 'status=' + response.status)
+            } catch (err) {
+                resultEl.innerHTML +=
+                    '<br><br><strong style="color:#dc2626">✗ Siteverify 失败:</strong> ' +
+                    '<code>' + escapeHtml(err.message) + '</code>'
+                log('error', label, 'siteverify 请求失败', err.message)
+            }
+        }
+
+        // ================================================================
+        // 各卡片回调函数
+        // ================================================================
+
+        // ① 默认
+        async function onSuccess(token) {
+            log('success', '①默认', '验证成功回调')
+            await callSiteverify(token, document.getElementById('result-default'), '①默认')
+        }
+
+        // ② 深色
+        async function onSuccessDark(token) {
+            log('success', '②深色', '验证成功回调')
+            await callSiteverify(token, document.getElementById('result-dark'), '②深色')
+        }
+
+        // ③ 紧凑
+        async function onSuccessCompact(token) {
+            log('success', '③紧凑', '验证成功回调')
+            await callSiteverify(token, document.getElementById('result-compact'), '③紧凑')
+        }
+
+        // ④ 自适应+自动启动
+        async function onSuccessAuto(token) {
+            log('success', '④自动', '验证成功回调')
+            await callSiteverify(token, document.getElementById('result-auto'), '④自动')
+        }
+
+        function onErrorAuto(error) {
+            const el = document.getElementById('result-auto')
+            el.textContent = '✗ 验证失败: ' + error.message
+            el.className = 'result-box error'
+            log('error', '④自动', '错误回调触发', error.message)
+        }
+
+        // ⑤ 编程式
+        let progWidgetId = null
+        const PROG_SITEKEY = 'trial-sitekey'
+
+        async function onSuccessProgrammatic(token) {
+            log('success', '⑤编程', '验证成功回调')
+            await callSiteverify(token, document.getElementById('result-programmatic'), '⑤编程')
+        }
+
+        function onErrorProgrammatic(error) {
+            const el = document.getElementById('result-programmatic')
+            el.textContent = '✗ 验证失败: ' + error.message
+            el.className = 'result-box error'
+            log('error', '⑤编程', '错误回调触发', error.message)
+        }
+
+        function renderProgrammatic() {
+            if (!weauthReady) {
+                log('warn', '⑤编程', 'weauth 尚未就绪，跳过渲染')
+                return
+            }
+            const container = document.getElementById('programmatic-container')
+            // 如果已有 widget 先移除
+            if (progWidgetId) {
+                try { weauth.remove(progWidgetId) } catch (e) { /* ignore */ }
+                progWidgetId = null
+            }
+            try {
+                progWidgetId = weauth.render(container, {
+                    sitekey: PROG_SITEKEY,
+                    theme: 'light',
+                    themeColor: 'orange',
+                    action: 'trial-programmatic',
+                    callback: onSuccessProgrammatic,
+                    'error-callback': onErrorProgrammatic
+                })
+                document.getElementById('result-programmatic').textContent = '已渲染 (widgetId: ' + progWidgetId + ')，点击按钮或 widget 触发验证'
+                document.getElementById('result-programmatic').className = 'result-box idle'
+                document.getElementById('progWidgetId').textContent = 'widgetId: ' + progWidgetId
+                log('info', '⑤编程', 'render() 成功', 'widgetId=' + progWidgetId)
+            } catch (err) {
+                document.getElementById('result-programmatic').textContent = '✗ render 失败: ' + err.message
+                document.getElementById('result-programmatic').className = 'result-box error'
+                log('error', '⑤编程', 'render() 失败', err.message)
+            }
+        }
+
+        function resetProgrammatic() {
+            if (!progWidgetId) { log('warn', '⑤编程', '尚未渲染，无法 reset'); return }
+            try {
+                weauth.reset(progWidgetId)
+                document.getElementById('result-programmatic').textContent = '已发送 reset 消息'
+                document.getElementById('result-programmatic').className = 'result-box idle'
+                log('info', '⑤编程', 'reset() 已发送', 'widgetId=' + progWidgetId)
+            } catch (err) {
+                log('error', '⑤编程', 'reset() 失败', err.message)
+            }
+        }
+
+        function executeProgrammatic() {
+            if (!progWidgetId) { log('warn', '⑤编程', '尚未渲染，无法 execute'); return }
+            try {
+                weauth.execute(progWidgetId)
+                document.getElementById('result-programmatic').textContent = '已发送 execute 消息'
+                log('info', '⑤编程', 'execute() 已发送', 'widgetId=' + progWidgetId)
+            } catch (err) {
+                log('error', '⑤编程', 'execute() 失败', err.message)
+            }
+        }
+
+        function removeProgrammatic() {
+            if (!progWidgetId) { log('warn', '⑤编程', '尚未渲染，无法 remove'); return }
+            try {
+                weauth.remove(progWidgetId)
+                document.getElementById('result-programmatic').textContent = '已移除 (remove)'
+                document.getElementById('result-programmatic').className = 'result-box idle'
+                document.getElementById('progWidgetId').textContent = '已移除'
+                log('info', '⑤编程', 'remove() 已执行', 'widgetId=' + progWidgetId)
+                progWidgetId = null
+            } catch (err) {
+                log('error', '⑤编程', 'remove() 失败', err.message)
+            }
+        }
+
+        // ================================================================
+        // ⑥ API 控制面板 — 跨 widget 管理
+        // ================================================================
+        function getAllWidgetIds() {
+            // 收集所有 data-* 自动渲染的 widgetId + 编程式 widgetId
+            const ids = []
+            document.querySelectorAll('.weauth-widget[data-widget-id]').forEach(function (el) {
+                ids.push(el.getAttribute('data-widget-id'))
+            })
+            if (progWidgetId) ids.push(progWidgetId)
+            return ids
+        }
+
+        function resetAllWidgets() {
+            const ids = getAllWidgetIds()
+            if (ids.length === 0) {
+                document.getElementById('result-api').textContent = '没有找到已渲染的 widget'
+                document.getElementById('result-api').className = 'result-box idle'
+                log('warn', '⑥控制', 'resetAll: 没有 widget 可操作')
+                return
+            }
+            ids.forEach(function (id) {
+                try {
+                    weauth.reset(id)
+                    log('info', '⑥控制', 'reset()', 'widgetId=' + id)
+                } catch (err) {
+                    log('error', '⑥控制', 'reset() 失败', id + ': ' + err.message)
+                }
+            })
+            document.getElementById('result-api').textContent = '已对 ' + ids.length + ' 个 widget 发送 reset 消息'
+            document.getElementById('result-api').className = 'result-box success'
+        }
+
+        function executeAllWidgets() {
+            const ids = getAllWidgetIds()
+            if (ids.length === 0) {
+                document.getElementById('result-api').textContent = '没有找到已渲染的 widget'
+                document.getElementById('result-api').className = 'result-box idle'
+                log('warn', '⑥控制', 'executeAll: 没有 widget 可操作')
+                return
+            }
+            ids.forEach(function (id) {
+                try {
+                    weauth.execute(id)
+                    log('info', '⑥控制', 'execute()', 'widgetId=' + id)
+                } catch (err) {
+                    log('error', '⑥控制', 'execute() 失败', id + ': ' + err.message)
+                }
+            })
+            document.getElementById('result-api').textContent = '已对 ' + ids.length + ' 个 widget 发送 execute 消息'
+            document.getElementById('result-api').className = 'result-box success'
+        }
+
+        function removeAllProgrammatic() {
+            if (!progWidgetId) {
+                document.getElementById('result-api').textContent = '编程式 widget 尚未渲染'
+                document.getElementById('result-api').className = 'result-box idle'
+                log('warn', '⑥控制', 'remove ⑤: 尚未渲染')
+                return
+            }
+            try {
+                weauth.remove(progWidgetId)
+                document.getElementById('result-programmatic').textContent = '已移除 (通过控制面板)'
+                document.getElementById('result-programmatic').className = 'result-box idle'
+                document.getElementById('progWidgetId').textContent = '已移除'
+                document.getElementById('result-api').textContent = '已移除编程式 widget: ' + progWidgetId
+                document.getElementById('result-api').className = 'result-box success'
+                log('info', '⑥控制', 'remove() ⑤', 'widgetId=' + progWidgetId)
+                progWidgetId = null
+            } catch (err) {
+                document.getElementById('result-api').textContent = 'remove 失败: ' + err.message
+                document.getElementById('result-api').className = 'result-box error'
+                log('error', '⑥控制', 'remove() ⑤ 失败', err.message)
+            }
+        }
+    </script>
+</body>
+</html>

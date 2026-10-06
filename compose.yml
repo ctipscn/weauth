@@ -1,0 +1,115 @@
+# =============================================================================
+# compose.yml — WeAuth 全栈 Docker Compose 编排
+# =============================================================================
+# 使用方式:
+#   docker compose up -d            # 后台启动所有服务
+#   docker compose logs -f          # 查看实时日志
+#   docker compose down -v          # 停止并删除数据卷
+#
+# 访问地址:
+#   - 前端页面:    http://localhost:5173
+#   - 后端 API:    http://localhost:8080
+#   - 健康检查:    http://localhost:8081/health
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 数据库
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:14.24-trixie
+    container_name: weauth-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: weauth
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: weauth
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U weauth -d weauth" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - weauth-net
+
+  # ---------------------------------------------------------------------------
+  # WeAuth 后端服务 (Go/Gin)
+  # ---------------------------------------------------------------------------
+  # 构建上下文为 ./backend，使用 backend/docker/Dockerfile
+  # 配置优先级: 环境变量 > /etc/weauth/weauth.conf > 代码默认值
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: docker/Dockerfile
+    container_name: weauth-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      # --- 数据库连接（覆盖 conf 中的 127.0.0.1）---
+      WEAUTH_DATABASE_HOST: postgres
+      WEAUTH_DATABASE_PORT: "5432"
+      WEAUTH_DATABASE_USER: weauth
+      WEAUTH_DATABASE_PASSWORD: admin123
+      WEAUTH_DATABASE_DB_NAME: weauth
+      WEAUTH_DATABASE_DB_MODE: debug
+
+      # --- 服务监听 ---
+      WEAUTH_SERVER_LISTEN: "0.0.0.0"
+      WEAUTH_SERVER_PORT: "8080"
+      WEAUTH_SERVER_MODE: debug
+
+      # --- OIDC 回调前端地址（浏览器侧）---
+      WEAUTH_OIDC_CLIENT_ID: ""
+      WEAUTH_OIDC_CLIENT_SECRET: ""
+      WEAUTH_OIDC_DISCOVERY_URL: ""
+      WEAUTH_OIDC_REDIRECT_URL: "http://localhost:8080/api/auth/oidc/callback"
+      WEAUTH_OIDC_FRONTEND_URL: http://localhost:5173
+
+      # --- JWT（生产环境请更换密钥）---
+      WEAUTH_JWT_SECRET: default-secret-please-change
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - weauth-net
+
+  # ---------------------------------------------------------------------------
+  # WeAuth 前端服务 (Vue SPA + Widget, Nginx 托管)
+  # ---------------------------------------------------------------------------
+  # 构建上下文为 ./frontend，使用 frontend/docker/Dockerfile
+  # VITE_API_BASE_URL / VITE_WIDGET_BASE_URL 作为 build arg 传入
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: docker/Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8080/api
+        VITE_WIDGET_BASE_URL: http://localhost:5173
+    container_name: weauth-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - weauth-net
+
+networks:
+  weauth-net:
+    name: weauth-net
+    driver: bridge
+
+volumes:
+  pgdata:
+    name: weauth-pgdata
+    driver: local
+    

@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WeAuth PoW 前后端交互测试</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #1a1a2e; padding: 24px; }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .subtitle { color: #666; font-size: 14px; margin-bottom: 20px; }
+  .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 16px; margin-bottom: 12px; color: #444; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+  .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .form-group { flex: 1; min-width: 140px; }
+  .form-group label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; font-weight: 600; }
+  .form-group input, .form-group select { width: 100%; padding: 8px 10px; border: 1px solid #d0d5dd; border-radius: 6px; font-size: 13px; outline: none; transition: border-color 0.15s; }
+  .form-group input:focus, .form-group select:focus { border-color: #4361ee; box-shadow: 0 0 0 2px rgba(67,97,238,0.12); }
+  .form-group input[type="checkbox"] { width: auto; margin-right: 6px; }
+  .form-group.checkbox { display: flex; align-items: center; gap: 6px; min-width: auto; }
+  .form-group.checkbox label { margin-bottom: 0; cursor: pointer; }
+  .btn { padding: 8px 18px; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s, opacity 0.15s; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: #4361ee; color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #3651d4; }
+  .btn-success { background: #10b981; color: #fff; }
+  .btn-success:hover:not(:disabled) { background: #059669; }
+  .btn-warning { background: #f59e0b; color: #fff; }
+  .btn-warning:hover:not(:disabled) { background: #d97706; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-danger:hover:not(:disabled) { background: #dc2626; }
+  .btn-outline { background: transparent; color: #4361ee; border: 1px solid #4361ee; }
+  .btn-outline:hover:not(:disabled) { background: #eef0ff; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .status-success { background: #d1fae5; color: #065f46; }
+  .status-error { background: #fee2e2; color: #991b1b; }
+  .status-info { background: #dbeafe; color: #1e40af; }
+  .status-warn { background: #fef3c7; color: #92400e; }
+  .status-pending { background: #e5e7eb; color: #4b5563; }
+  .log-panel { background: #1e1e2e; color: #cdd6f4; border-radius: 8px; font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace; font-size: 12px; line-height: 1.6; padding: 16px; max-height: 480px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+  .log-panel .log-time { color: #6c7086; }
+  .log-panel .log-info { color: #89b4fa; }
+  .log-panel .log-success { color: #a6e3a1; }
+  .log-panel .log-error { color: #f38ba8; }
+  .log-panel .log-warn { color: #fab387; }
+  .log-panel .log-data { color: #f5c2e7; }
+  .log-panel .log-collapse { color: #585b70; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .summary-item { background: #f8fafc; border-radius: 8px; padding: 10px; text-align: center; }
+  .summary-item .value { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+  .summary-item .label { font-size: 11px; color: #888; margin-top: 2px; }
+  .summary-item.success .value { color: #10b981; }
+  .summary-item.error .value { color: #ef4444; }
+  .progress-bar { width: 100%; height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; margin: 8px 0; }
+  .progress-bar .fill { height: 100%; background: linear-gradient(90deg, #4361ee, #10b981); border-radius: 3px; transition: width 0.3s; }
+  #powStatus { margin-top: 8px; font-size: 13px; }
+  #powStatus .speed { color: #666; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+  .tab { padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid transparent; background: transparent; color: #666; transition: all 0.15s; }
+  .tab:hover { background: #f0f0f0; }
+  .tab.active { background: #eef0ff; color: #4361ee; border-color: #4361ee; }
+  .hide { display: none; }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  code { background: #f0f0f5; padding: 1px 5px; border-radius: 3px; font-size: 12px; font-family: "JetBrains Mono", monospace; }
+  .flow-diagram { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; font-size: 12px; padding: 8px 0; color: #666; }
+  .flow-diagram .step { background: #eef0ff; color: #4361ee; padding: 4px 10px; border-radius: 4px; font-weight: 500; }
+  .flow-diagram .arrow { color: #aaa; font-size: 16px; }
+  .expandable { cursor: pointer; user-select: none; }
+  .expandable:hover { color: #89b4fa; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🔐 WeAuth PoW 前后端交互测试</h1>
+  <p class="subtitle">完整接入工作量证明（Proof of Work）的人机验证流程，含前端 SHA-256 计算</p>
+
+  <!-- Flow Diagram -->
+  <div class="card">
+    <div class="flow-diagram">
+      <span class="step">① 请求 Challenge</span>
+      <span class="arrow">→</span>
+      <span class="step">② 服务端返回挑战</span>
+      <span class="arrow">→</span>
+      <span class="step">③ 前端 SHA-256 暴力破解</span>
+      <span class="arrow">→</span>
+      <span class="step">④ 提交 Nonce 验证</span>
+      <span class="arrow">→</span>
+      <span class="step">⑤ 获取 Token</span>
+      <span class="arrow">→</span>
+      <span class="step">⑥ SiteVerify 校验</span>
+    </div>
+  </div>
+
+  <!-- Configuration -->
+  <div class="card">
+    <h2>⚙️ 配置</h2>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label for="apiBase">API 基础地址</label>
+        <input id="apiBase" value="http://localhost:8080" placeholder="http://localhost:8080">
+      </div>
+      <div class="form-group" style="flex:1">
+        <label for="sitekey">Sitekey</label>
+        <input id="sitekey" value="trial-sitekey" placeholder="站点 sitekey">
+      </div>
+      <div class="form-group" style="flex:1">
+        <label for="secret">Secret（用于 siteverify）</label>
+        <input id="secret" value="trial-secret" placeholder="站点 secret">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="origin">Origin</label>
+        <input id="origin" value="http://localhost:5173" placeholder="来源域名">
+      </div>
+      <div class="form-group">
+        <label for="action">Action</label>
+        <input id="action" value="login" placeholder="动作标识">
+      </div>
+
+
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="card">
+    <h2>🚀 操作</h2>
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btnFullFlow" onclick="runFullFlow()">▶ 执行完整流程</button>
+      <button class="btn btn-outline" id="btnChallenge" onclick="stepGetChallenge()">① 仅获取 Challenge</button>
+      <button class="btn btn-outline" id="btnVerify" onclick="stepSolveAndVerify()" disabled>② 计算 PoW + 验证</button>
+      <button class="btn btn-outline" id="btnSiteVerify" onclick="stepSiteVerify()" disabled>③ SiteVerify</button>
+      <button class="btn btn-danger btn-sm" onclick="clearLog()">清空日志</button>
+    </div>
+    <div id="powStatus" class="hide">
+      <div class="progress-bar"><div class="fill" id="powProgress" style="width:0%"></div></div>
+      <span id="powStatusText"></span>
+      <span class="speed" id="powSpeed"></span>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="card" id="summaryCard">
+    <h2>📊 本次统计</h2>
+    <div class="summary-grid" id="summaryGrid">
+      <div class="summary-item"><div class="value" id="sDifficulty">-</div><div class="label">难度</div></div>
+      <div class="summary-item" id="sIterationsItem"><div class="value" id="sIterations">-</div><div class="label">迭代次数</div></div>
+      <div class="summary-item" id="sTimeItem"><div class="value" id="sTimeMs">-</div><div class="label">计算耗时 (ms)</div></div>
+      <div class="summary-item" id="sSpeedItem"><div class="value" id="sSpeed">-</div><div class="label">速度 (hash/s)</div></div>
+      <div class="summary-item"><div class="value" id="sToken">-</div><div class="label">Token 状态</div></div>
+      <div class="summary-item"><div class="value" id="sVerify">-</div><div class="label">SiteVerify</div></div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="card">
+    <h2>📋 前后端交互日志 <span style="font-weight:400;font-size:12px;color:#888">（请求/响应/计算详情均已输出到浏览器控制台）</span></h2>
+    <div class="log-panel" id="logPanel">[等待操作...]</div>
+  </div>
+
+  <!-- Batch Nonces sub-panel -->
+  <div class="card hide" id="batchPanel">
+    <h2>📦 批量 Nonces</h2>
+    <div class="log-panel" id="batchNoncesPanel" style="max-height:200px">[批量模式 nonces 将显示在此]</div>
+  </div>
+</div>
+
+<script>
+// ====== State ======
+let state = {
+  challengeId: null,
+  challengeStr: null,
+  challengeStrs: null,  // batch mode
+  difficulty: 0,
+  batchMode: false,
+  batchTotal: 1,
+  nonce: null,
+  nonces: null,
+  token: null,
+  iterations: 0,
+  solveTimeMs: 0,
+  solving: false,
+  verified: false,
+};
+
+// ====== DOM refs ======
+const $ = id => document.getElementById(id);
+const logPanel = $('logPanel');
+const powStatus = $('powStatus');
+const powProgress = $('powProgress');
+const powStatusText = $('powStatusText');
+const powSpeed = $('powSpeed');
+const btnChallenge = $('btnChallenge');
+const btnVerify = $('btnVerify');
+const btnSiteVerify = $('btnSiteVerify');
+const btnFullFlow = $('btnFullFlow');
+const batchPanel = $('batchPanel');
+
+// ====== Logging ======
+function log(level, msg, data = null) {
+  const time = new Date().toISOString().split('T')[1].split('.')[0];
+  const levelMap = { info: 'log-info', success: 'log-success', error: 'log-error', warn: 'log-warn', data: 'log-data' };
+  const cls = levelMap[level] || 'log-info';
+  let line = `<span class="log-time">[${time}]</span> <span class="${cls}">[${level.toUpperCase()}]</span> ${escapeHtml(msg)}`;
+  if (data !== null) {
+    line += `\n<span class="log-data">▸ ${escapeHtml(JSON.stringify(data, null, 2))}</span>`;
+  }
+
+  // Also output to browser console with expandable objects
+  const consoleFn = level === 'error' ? console.error : level === 'warn' ? console.warn : level === 'success' ? console.info : console.log;
+  consoleFn(`[${time}] [${level.toUpperCase()}] ${msg}`, data !== null ? data : '');
+
+  const placeholder = logPanel.textContent === '[等待操作...]';
+  if (placeholder) logPanel.innerHTML = '';
+  logPanel.innerHTML += line + '\n';
+  logPanel.scrollTop = logPanel.scrollHeight;
+}
+
+function escapeHtml(s) {
+  if (typeof s !== 'string') return String(s);
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function clearLog() {
+  logPanel.innerHTML = '[等待操作...]';
+  batchPanel.classList.add('hide');
+  resetSummary();
+}
+
+function resetSummary() {
+  $('sDifficulty').textContent = '-';
+  $('sIterations').textContent = '-';
+  $('sTimeMs').textContent = '-';
+  $('sSpeed').textContent = '-';
+  $('sToken').textContent = '-';
+  $('sVerify').textContent = '-';
+  state.verified = false;
+}
+
+// ====== Meta 生成：BaseRequest 信封元数据 ======
+function makeMeta() {
+  const ts = new Date().toISOString();
+  const rid = 'test-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
+  return { request_id: rid, timestamp: ts };
+}
+
+// ====== API helper ======
+async function apiPost(path, body) {
+  const base = $('apiBase').value.replace(/\/+$/, '');
+  const url = `${base}${path}`;
+  const startTime = performance.now();
+
+  // 按后端 BaseRequest 信封格式封装
+  const envelope = { meta: makeMeta(), data: body };
+  log('info', `➡️  REQUEST  ${path}`, envelope);
+  console.log(`[FETCH] POST ${url}`, envelope);
+
+  let resp;
+  try {
+    resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(envelope),
+    });
+  } catch (err) {
+    log('error', `❌ 网络请求失败: ${err.message}`);
+    console.error('[FETCH ERROR]', err);
+    throw err;
+  }
+
+  const elapsed = (performance.now() - startTime).toFixed(1);
+  let data;
+  try {
+    data = await resp.json();
+  } catch {
+    data = { raw: true, text: await resp.text() };
+  }
+
+  log('data', `⬅️  RESPONSE ${path} [${resp.status} ${resp.statusText}] (${elapsed}ms)`, data);
+  console.log(`[RESPONSE] ${resp.status} ${resp.statusText} (${elapsed}ms)`, data);
+
+  if (!resp.ok) {
+    const errMsg = data.msg || data.message || `HTTP ${resp.status}`;
+    throw new Error(errMsg);
+  }
+
+  return data;
+}
+
+// ====== PoW Core: SHA-256 via Web Crypto API ======
+async function sha256Hex(str) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hashBuf = await crypto.subtle.digest('SHA-256', data);
+  const hashArr = Array.from(new Uint8Array(hashBuf));
+  return hashArr.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function solvePoW(challengeStr, difficulty, onProgress) {
+  const prefix = '0'.repeat(difficulty);
+  let nonce = 0;
+  let iterations = 0;
+  const startTime = performance.now();
+  let lastReport = startTime;
+
+  log('info', `🔨 开始计算 PoW: challenge="${challengeStr.substring(0,16)}...", difficulty=${difficulty}`);
+  log('info', `   目标: SHA256(challenge + nonce) 以 ${prefix} 开头`);
+
+  while (true) {
+    const data = challengeStr + nonce;
+    const hash = await sha256Hex(data);
+    iterations++;
+
+    if (hash.startsWith(prefix)) {
+      const elapsed = performance.now() - startTime;
+      const speed = Math.round(iterations / (elapsed / 1000));
+      log('success', `✅ 找到解! nonce=${nonce}, iterations=${iterations}, time=${elapsed.toFixed(1)}ms, speed=${speed.toLocaleString()} hash/s`);
+      console.log(`[PoW SOLVED] nonce=${nonce} hash=${hash} iterations=${iterations} elapsed=${elapsed.toFixed(1)}ms`);
+      return { nonce: String(nonce), iterations, elapsedMs: Math.round(elapsed), hash };
+    }
+
+    // Progress reporting every ~50ms
+    const now = performance.now();
+    if (now - lastReport > 50 && onProgress) {
+      const elapsed = now - startTime;
+      const speed = Math.round(iterations / (elapsed / 1000));
+      onProgress(iterations, elapsed, speed, nonce);
+      lastReport = now;
+    }
+
+    nonce++;
+    // Safety: if we go too long, warn but keep going
+    if (nonce > 50000000) {
+      log('warn', `⚠️  已迭代 ${iterations.toLocaleString()} 次仍未找到解，继续尝试...`);
+      nonce = 0; // wrap around (should never happen with reasonable difficulty)
+    }
+  }
+}
+
+// ====== Steps ======
+async function stepGetChallenge() {
+  resetSummary();
+  const sitekey = $('sitekey').value.trim() || 'test-demo-site';
+  const origin = $('origin').value.trim() || 'http://localhost:8080';
+  const action = $('action').value.trim() || 'login';
+  const body = { sitekey, origin, action };
+
+  disableButtons(true);
+  try {
+    const resp = await apiPost('/api/pow/challenge', body);
+
+    const d = resp.data;
+    state.challengeId = d.challenge_id;
+    state.difficulty = d.difficulty;
+    state.batchMode = d.batch_mode;
+    state.batchTotal = d.batch_total || 1;
+
+    if (state.batchMode && d.challenges) {
+      state.challengeStrs = d.challenges;
+      state.challengeStr = null;
+    } else {
+      state.challengeStr = d.challenge || null;
+      state.challengeStrs = null;
+    }
+
+    $('sDifficulty').textContent = state.difficulty;
+
+    log('success', `🎯 Challenge 获取成功! challenge_id=${state.challengeId}, difficulty=${state.difficulty}, batch=${state.batchMode}, total=${state.batchTotal}`);
+    console.log('[STATE]', { ...state });
+
+    // Enable Verify button
+    btnVerify.disabled = false;
+    btnSiteVerify.disabled = true;
+
+    if (state.batchMode && state.challengeStrs) {
+      batchPanel.classList.remove('hide');
+      $('batchNoncesPanel').innerHTML = `<span class="log-info">[共 ${state.batchTotal} 个挑战，等待计算 nonces...]</span>\n`;
+    }
+
+    return resp;
+  } catch (err) {
+    log('error', `❌ 获取 Challenge 失败: ${err.message}`);
+    throw err;
+  } finally {
+    disableButtons(false);
+  }
+}
+
+async function stepSolveAndVerify() {
+  if (!state.challengeId) {
+    log('warn', '⚠️ 请先获取 Challenge');
+    return;
+  }
+  if (state.solving) {
+    log('warn', '⚠️ 正在计算中，请等待...');
+    return;
+  }
+
+  btnVerify.disabled = true;
+  btnFullFlow.disabled = true;
+
+  try {
+    if (state.batchMode && state.challengeStrs) {
+      await solveBatchAndVerify();
+    } else if (state.challengeStr) {
+      await solveSingleAndVerify();
+    } else {
+      log('error', '❌ 没有可用的 challenge 字符串');
+    }
+  } finally {
+    btnVerify.disabled = false;
+    btnFullFlow.disabled = false;
+  }
+}
+
+async function solveSingleAndVerify() {
+  state.solving = true;
+  showProgress(true);
+
+  try {
+    const result = await solvePoW(state.challengeStr, state.difficulty, (iter, elapsed, speed, nonce) => {
+      const pct = Math.min(99, (nonce / Math.pow(16, state.difficulty)) * 100);
+      powProgress.style.width = pct + '%';
+      powStatusText.textContent = `计算中... 迭代 ${iter.toLocaleString()} 次, 当前 nonce=${nonce}`;
+      powSpeed.textContent = ` (${speed.toLocaleString()} hash/s)`;
+      $('sIterations').textContent = iter.toLocaleString();
+      $('sTimeMs').textContent = elapsed.toFixed(0);
+      $('sSpeed').textContent = speed.toLocaleString();
+    });
+
+    state.nonce = result.nonce;
+    state.iterations = result.iterations;
+    state.solveTimeMs = result.elapsedMs;
+
+    powProgress.style.width = '100%';
+    powStatusText.textContent = `✅ 找到解! nonce=${result.nonce}, hash=${result.hash.substring(0,16)}...`;
+    powSpeed.textContent = '';
+
+    $('sIterations').textContent = result.iterations.toLocaleString();
+    $('sTimeMs').textContent = result.elapsedMs;
+    $('sSpeed').textContent = Math.round(result.iterations / (result.elapsedMs / 1000)).toLocaleString();
+
+    log('info', `📤 提交验证: challenge_id=${state.challengeId}, nonce=${result.nonce}`);
+    const verifyBody = {
+      challenge_id: state.challengeId,
+      nonce: result.nonce,
+      iterations: result.iterations,
+      solve_time_ms: result.elapsedMs,
+      batch_mode: false,
+    };
+    console.log('[VERIFY REQUEST]', verifyBody);
+
+    const verifyResp = await apiPost('/api/pow/verify', verifyBody);
+    state.token = verifyResp.data.token;
+
+    $('sToken').innerHTML = `<span class="status-badge status-success">✓ 已获取</span>`;
+    log('success', `🎫 Token 获取成功! token=${state.token}`);
+    console.log('[TOKEN]', state.token);
+
+    btnSiteVerify.disabled = false;
+    return verifyResp;
+  } catch (err) {
+    log('error', `❌ 验证失败: ${err.message}`);
+    $('sToken').innerHTML = `<span class="status-badge status-error">✗ ${err.message}</span>`;
+    throw err;
+  } finally {
+    state.solving = false;
+    showProgress(false);
+  }
+}
+
+async function solveBatchAndVerify() {
+  state.solving = true;
+  showProgress(true);
+
+  const totalChallenges = state.challengeStrs.length;
+  const allNonces = [];
+  let totalIter = 0;
+  const batchStart = performance.now();
+
+  const batchPanelEl = $('batchNoncesPanel');
+  batchPanelEl.innerHTML = '';
+
+  try {
+    for (let i = 0; i < totalChallenges; i++) {
+      const ch = state.challengeStrs[i];
+      log('info', `🔨 [${i+1}/${totalChallenges}] 计算第 ${i+1} 个 challenge...`);
+
+      const result = await solvePoW(ch, state.difficulty, (iter, elapsed, speed) => {
+        const pct = ((i + (iter / Math.pow(16, state.difficulty))) / totalChallenges) * 100;
+        powProgress.style.width = Math.min(99, pct) + '%';
+        powStatusText.textContent = `[${i+1}/${totalChallenges}] challenge ${i+1}: 迭代 ${iter.toLocaleString()} 次`;
+        powSpeed.textContent = ` (${speed.toLocaleString()} hash/s)`;
+      });
+
+      allNonces.push(result.nonce);
+      totalIter += result.iterations;
+
+      batchPanelEl.innerHTML += `<span class="log-success">✓ challenge[${i+1}] nonce=${result.nonce} (${result.iterations} iter, ${result.elapsedMs}ms)</span>\n`;
+      log('success', `  [${i+1}/${totalChallenges}] 完成: nonce=${result.nonce}, iterations=${result.iterations}`);
+    }
+
+    const totalTime = performance.now() - batchStart;
+    const avgSpeed = Math.round(totalIter / (totalTime / 1000));
+
+    powProgress.style.width = '100%';
+    powStatusText.textContent = `✅ 全部 ${totalChallenges} 个 challenge 求解完成`;
+    powSpeed.textContent = '';
+
+    $('sIterations').textContent = totalIter.toLocaleString();
+    $('sTimeMs').textContent = totalTime.toFixed(0);
+    $('sSpeed').textContent = avgSpeed.toLocaleString();
+
+    state.nonces = allNonces;
+    state.iterations = totalIter;
+    state.solveTimeMs = Math.round(totalTime);
+
+    log('info', `📤 批量提交验证: challenge_id=${state.challengeId}, nonces=${JSON.stringify(allNonces)}`);
+    const verifyBody = {
+      challenge_id: state.challengeId,
+      nonces: allNonces,
+      iterations: totalIter,
+      solve_time_ms: Math.round(totalTime),
+      batch_mode: true,
+    };
+    console.log('[BATCH VERIFY REQUEST]', verifyBody);
+
+    const verifyResp = await apiPost('/api/pow/verify', verifyBody);
+    state.token = verifyResp.data.token;
+
+    $('sToken').innerHTML = `<span class="status-badge status-success">✓ 已获取</span>`;
+    log('success', `🎫 Token 获取成功! token=${state.token}`);
+    console.log('[TOKEN]', state.token);
+
+    btnSiteVerify.disabled = false;
+    return verifyResp;
+  } catch (err) {
+    log('error', `❌ 批量验证失败: ${err.message}`);
+    $('sToken').innerHTML = `<span class="status-badge status-error">✗ ${err.message}</span>`;
+    throw err;
+  } finally {
+    state.solving = false;
+    showProgress(false);
+  }
+}
+
+async function stepSiteVerify() {
+  if (!state.token) {
+    log('warn', '⚠️ 没有可用的 token，请先完成 PoW 验证');
+    return;
+  }
+
+  const secret = $('secret').value.trim() || 'test-demo-secret';
+
+  log('info', `🔍 提交 SiteVerify: secret=${secret.substring(0,4)}..., token=${state.token.substring(0,8)}...`);
+  try {
+    const resp = await apiPost('/api/pow/siteverify', {
+      secret,
+      token: state.token,
+    });
+
+    log('success', `✅ SiteVerify 成功! hostname=${resp.data.hostname}, action=${resp.data.action}, challenge_ts=${resp.data.challenge_ts}`);
+    console.log('[SITEVERIFY RESULT]', resp);
+
+    $('sVerify').innerHTML = `<span class="status-badge status-success">✓ 通过</span>`;
+    state.verified = true;
+
+    return resp;
+  } catch (err) {
+    log('error', `❌ SiteVerify 失败: ${err.message}`);
+    $('sVerify').innerHTML = `<span class="status-badge status-error">✗ ${err.message}</span>`;
+    throw err;
+  }
+}
+
+async function runFullFlow() {
+  disableButtons(true);
+  resetSummary();
+  clearLog();
+
+  try {
+    log('info', '🚀 ====== 开始完整 PoW 流程 ======');
+    console.log('%c===== WeAuth PoW Full Flow =====', 'font-size:16px;font-weight:bold;color:#4361ee;');
+
+    await stepGetChallenge();
+    await stepSolveAndVerify();
+    await stepSiteVerify();
+
+    log('success', '🎉 ====== 完整流程执行成功! ======');
+    console.log('%c===== PoW Flow Complete =====', 'font-size:16px;font-weight:bold;color:#10b981;');
+  } catch (err) {
+    log('error', `💥 流程中断: ${err.message}`);
+    console.error('[FLOW ERROR]', err);
+  } finally {
+    disableButtons(false);
+  }
+}
+
+// ====== UI Helpers ======
+function disableButtons(disabled) {
+  btnChallenge.disabled = disabled;
+  btnVerify.disabled = disabled || !state.challengeId;
+  btnSiteVerify.disabled = disabled || !state.token;
+  btnFullFlow.disabled = disabled;
+}
+
+function showProgress(visible) {
+  if (visible) {
+    powStatus.classList.remove('hide');
+    powProgress.style.width = '0%';
+    powStatusText.textContent = '准备中...';
+    powSpeed.textContent = '';
+  } else {
+    powStatus.classList.add('hide');
+  }
+}
+
+// ====== Console intro ======
+console.log('%c🔐 WeAuth PoW Test Console', 'font-size:18px;font-weight:bold;color:#4361ee;');
+console.log('%c所有 API 请求、响应和 PoW 计算细节均已输出到此控制台', 'font-size:13px;color:#666;');
+console.log('可用函数: runFullFlow(), stepGetChallenge(), stepSolveAndVerify(), stepSiteVerify()');
+console.log('当前状态:', state);
+
+// Expose for console
+window.runFullFlow = runFullFlow;
+window.stepGetChallenge = stepGetChallenge;
+window.stepSolveAndVerify = stepSolveAndVerify;
+window.stepSiteVerify = stepSiteVerify;
+window.state = state;
+</script>
+</body>
+</html>

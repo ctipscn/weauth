@@ -1,0 +1,53 @@
+# =============================================================================
+# docker-compose.yml — WeAuth Backend (PostgreSQL + App)
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:14.24-trixie
+    container_name: pg-test
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: weauth
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: weauth
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U weauth -d weauth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  weauth:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: weauth-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      WEAUTH_DATABASE_HOST: postgres
+      WEAUTH_DATABASE_PORT: "5432"
+      WEAUTH_DATABASE_USER: weauth
+      WEAUTH_DATABASE_PASSWORD: admin123
+      WEAUTH_DATABASE_DB_NAME: weauth
+      WEAUTH_DATABASE_DB_MODE: release
+      WEAUTH_SERVER_MODE: release
+      WEAUTH_OIDC_CLIENT_ID: ""
+      WEAUTH_OIDC_CLIENT_SECRET: ""
+      WEAUTH_OIDC_DISCOVERY_URL: ""
+      WEAUTH_OIDC_REDIRECT_URL: ""
+      WEAUTH_OIDC_FRONTEND_URL: ""
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+    driver: local
