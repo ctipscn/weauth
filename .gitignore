@@ -29,3 +29,5 @@ coverage/
 # TypeScript incremental build info
 *.tsbuildinfo
 
+# Others
+logs/
